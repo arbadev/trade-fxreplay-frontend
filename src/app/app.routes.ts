@@ -20,8 +20,8 @@ export const routes: Routes = [
   },
   {
     path: 'trades/:id',
-    loadComponent: () => import('./features/dashboard/dashboard.component')
-      .then(m => m.DashboardComponent),
+    loadComponent: () => import('./features/trade-detail/trade-detail.component')
+      .then(m => m.TradeDetailComponent),
     title: 'Trade Details | FX Replay'
   },
   {

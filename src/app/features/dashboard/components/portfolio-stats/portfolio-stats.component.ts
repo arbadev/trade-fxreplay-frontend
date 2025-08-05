@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -234,13 +234,20 @@ export class PortfolioStatsComponent implements OnInit {
   });
 
   constructor() {
-    // Subscribe to portfolio stats from TradeOrderService
-    this.tradeOrderService.portfolioStats$
-      .pipe(takeUntilDestroyed())
-      .subscribe(stats => {
-        this.stats.set(stats as PortfolioStats | null);
+    // Use signal-based portfolio stats directly from service
+    effect(() => {
+      const serviceStats = this.tradeOrderService.portfolioStats();
+      const isServiceLoading = this.tradeOrderService.isLoading();
+      
+      this.stats.set(serviceStats);
+      
+      // Only show loading if service is loading and we have no stats
+      if (isServiceLoading && !serviceStats) {
+        this.isLoading.set(true);
+      } else {
         this.isLoading.set(false);
-      });
+      }
+    });
   }
 
   ngOnInit(): void {

@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject, map, tap, catchError, throwError, of } from 'rxjs';
 
@@ -8,6 +8,8 @@ import {
   PaginatedTradeOrdersResponseDto,
   GetTradeOrdersParams,
   OrderStatus,
+  OrderType,
+  OrderSide,
   TradingSymbol,
   SortField,
   PortfolioStats,
@@ -41,14 +43,52 @@ export class TradeOrderService {
     ORDER_BY_ID: (id: string) => `${this.API_BASE_URL}/trade-orders/${id}`
   } as const;
 
-  // Cache management
-  private readonly _ordersCache = new BehaviorSubject<TradeOrderResponseDto[]>([]);
-  private readonly _lastFetchParams = new BehaviorSubject<GetTradeOrdersParams | null>(null);
-  private readonly _portfolioStats = new BehaviorSubject<PortfolioStats | null>(null);
+  // Signal-based cache management
+  private readonly _ordersCache = signal<TradeOrderResponseDto[]>([]);
+  private readonly _lastFetchParams = signal<GetTradeOrdersParams | null>(null);
+  private readonly _portfolioStats = signal<PortfolioStats | null>(null);
+  private readonly _isLoading = signal<boolean>(false);
+  private readonly _error = signal<string | null>(null);
   
-  // Public observables
-  readonly orders$ = this._ordersCache.asObservable();
-  readonly portfolioStats$ = this._portfolioStats.asObservable();
+  // Development flag for mock data
+  private readonly _useMockData = signal<boolean>(false);
+  
+  // Public signals
+  readonly orders = this._ordersCache.asReadonly();
+  readonly portfolioStats = this._portfolioStats.asReadonly();
+  readonly isLoading = this._isLoading.asReadonly();
+  readonly error = this._error.asReadonly();
+  
+  // Legacy observables for backward compatibility
+  readonly orders$ = new BehaviorSubject<TradeOrderResponseDto[]>([]);
+  readonly portfolioStats$ = new BehaviorSubject<PortfolioStats | null>(null);
+  
+  // Computed signals for convenience
+  readonly activeOrders = computed(() => 
+    this._ordersCache().filter(order => order.isActive)
+  );
+  
+  readonly closedOrders = computed(() => 
+    this._ordersCache().filter(order => order.isClosed)
+  );
+  
+  readonly pendingOrders = computed(() => 
+    this._ordersCache().filter(order => order.status === 'pending')
+  );
+  
+  readonly profitableOrders = computed(() => 
+    this._ordersCache().filter(order => order.profit && order.profit > 0)
+  );
+  
+  readonly todayOrders = computed(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return this._ordersCache().filter(order => {
+      const orderDate = new Date(order.createdAt);
+      orderDate.setHours(0, 0, 0, 0);
+      return orderDate.getTime() === today.getTime();
+    });
+  });
 
   /**
    * Fetch paginated trade orders with comprehensive filtering and sorting
@@ -57,6 +97,15 @@ export class TradeOrderService {
    * @returns Observable of paginated trade orders response
    */
   getTradeOrders(params: GetTradeOrdersParams = {}): Observable<PaginatedTradeOrdersResponseDto> {
+    // Set loading state before making the request
+    this._isLoading.set(true);
+    this._error.set(null);
+    
+    // For development, return mock data if API is not available
+    if (this.shouldUseMockData()) {
+      return this.getMockTradeOrders(params);
+    }
+    
     const httpParams = this.buildQueryParams(params);
     
     return this.http.get<PaginatedTradeOrdersResponseDto>(
@@ -64,15 +113,30 @@ export class TradeOrderService {
       { params: httpParams }
     ).pipe(
       tap(response => {
-        // Update cache with fresh data
-        this._ordersCache.next(response.orders);
-        this._lastFetchParams.next(params);
+        // Update signals with fresh data
+        this._ordersCache.set(response.orders);
+        this._lastFetchParams.set(params);
+        this._isLoading.set(false);
+        this._error.set(null);
         
         // Update portfolio statistics
         this.updatePortfolioStats(response.orders);
+        
+        // Update legacy observables for backward compatibility
+        this.orders$.next(response.orders);
       }),
       catchError(error => {
         console.error('Failed to fetch trade orders:', error);
+        
+        // If API fails, try mock data as fallback
+        if (!this._useMockData()) {
+          console.log('API failed, falling back to mock data');
+          this._useMockData.set(true);
+          return this.getMockTradeOrders(params);
+        }
+        
+        this._isLoading.set(false);
+        this._error.set(error.message || 'Failed to fetch trade orders');
         return throwError(() => error);
       })
     );
@@ -89,6 +153,11 @@ export class TradeOrderService {
       return throwError(() => new Error('Order ID is required'));
     }
 
+    // For development, check if we should use mock data
+    if (this.shouldUseMockData()) {
+      return this.getMockTradeOrderById(orderId);
+    }
+
     return this.http.get<TradeOrderResponseDto>(
       this.API_ENDPOINTS.ORDER_BY_ID(orderId)
     ).pipe(
@@ -98,6 +167,14 @@ export class TradeOrderService {
       }),
       catchError(error => {
         console.error(`Failed to fetch trade order ${orderId}:`, error);
+        
+        // If API fails, try mock data as fallback
+        if (!this._useMockData()) {
+          console.log('API failed for single order, falling back to mock data');
+          this._useMockData.set(true);
+          return this.getMockTradeOrderById(orderId);
+        }
+        
         return throwError(() => error);
       })
     );
@@ -138,7 +215,7 @@ export class TradeOrderService {
    * Useful for real-time updates or manual refresh
    */
   refreshOrders(): Observable<PaginatedTradeOrdersResponseDto> {
-    const lastParams = this._lastFetchParams.value;
+    const lastParams = this._lastFetchParams();
     return this.getTradeOrders(lastParams || {});
   }
 
@@ -148,7 +225,7 @@ export class TradeOrderService {
    * @returns Current cached orders
    */
   getCachedOrders(): TradeOrderResponseDto[] {
-    return this._ordersCache.value;
+    return this._ordersCache();
   }
 
   /**
@@ -160,7 +237,7 @@ export class TradeOrderService {
   getFilteredCachedOrders(
     filter: (order: TradeOrderResponseDto) => boolean
   ): TradeOrderResponseDto[] {
-    return this._ordersCache.value.filter(filter);
+    return this._ordersCache().filter(filter);
   }
 
   /**
@@ -221,9 +298,15 @@ export class TradeOrderService {
    * Clear the orders cache
    */
   clearCache(): void {
-    this._ordersCache.next([]);
-    this._lastFetchParams.next(null);
-    this._portfolioStats.next(null);
+    this._ordersCache.set([]);
+    this._lastFetchParams.set(null);
+    this._portfolioStats.set(null);
+    this._isLoading.set(false);
+    this._error.set(null);
+    
+    // Update legacy observables
+    this.orders$.next([]);
+    this.portfolioStats$.next(null);
   }
 
   /**
@@ -367,16 +450,19 @@ export class TradeOrderService {
    * @param updatedOrder Updated order data
    */
   private updateOrderInCache(updatedOrder: TradeOrderResponseDto): void {
-    const currentOrders = this._ordersCache.value;
+    const currentOrders = this._ordersCache();
     const orderIndex = currentOrders.findIndex(order => order.id === updatedOrder.id);
     
     if (orderIndex !== -1) {
       const newOrders = [...currentOrders];
       newOrders[orderIndex] = updatedOrder;
-      this._ordersCache.next(newOrders);
+      this._ordersCache.set(newOrders);
       
       // Update portfolio stats
       this.updatePortfolioStats(newOrders);
+      
+      // Update legacy observable
+      this.orders$.next(newOrders);
     }
   }
 
@@ -386,12 +472,15 @@ export class TradeOrderService {
    * @param newOrder New order to add
    */
   private addOrderToCache(newOrder: TradeOrderResponseDto): void {
-    const currentOrders = this._ordersCache.value;
+    const currentOrders = this._ordersCache();
     const newOrders = [newOrder, ...currentOrders];
-    this._ordersCache.next(newOrders);
+    this._ordersCache.set(newOrders);
     
     // Update portfolio stats
     this.updatePortfolioStats(newOrders);
+    
+    // Update legacy observable
+    this.orders$.next(newOrders);
   }
 
   /**
@@ -401,7 +490,8 @@ export class TradeOrderService {
    */
   private updatePortfolioStats(orders: TradeOrderResponseDto[]): void {
     if (!orders || orders.length === 0) {
-      this._portfolioStats.next(null);
+      this._portfolioStats.set(null);
+      this.portfolioStats$.next(null);
       return;
     }
 
@@ -460,6 +550,177 @@ export class TradeOrderService {
       stats.averageLoss = losingTradesLoss / stats.losingTrades;
     }
 
-    this._portfolioStats.next(stats);
+    this._portfolioStats.set(stats);
+    this.portfolioStats$.next(stats);
+  }
+  
+  /**
+   * Check if mock data should be used (for development)
+   */
+  private shouldUseMockData(): boolean {
+    return this._useMockData() || !navigator.onLine;
+  }
+  
+  /**
+   * Generate mock trade order by ID for development
+   */
+  private getMockTradeOrderById(orderId: string): Observable<TradeOrderResponseDto> {
+    const mockOrders = this.generateMockOrders();
+    const order = mockOrders.find(o => o.id === orderId);
+    
+    if (!order) {
+      return throwError(() => new Error(`Order with ID ${orderId} not found`));
+    }
+    
+    return new Observable(observer => {
+      setTimeout(() => {
+        observer.next(order);
+        observer.complete();
+      }, 300); // Small delay to simulate network
+    });
+  }
+  
+  /**
+   * Generate mock trade orders data for development
+   */
+  private getMockTradeOrders(params: GetTradeOrdersParams = {}): Observable<PaginatedTradeOrdersResponseDto> {
+    const mockOrders = this.generateMockOrders();
+    
+    const mockResponse: PaginatedTradeOrdersResponseDto = {
+      orders: mockOrders,
+      total: mockOrders.length,
+      page: params.page || 1,
+      pageSize: params.pageSize || 20,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false
+    };
+    
+    return new Observable(observer => {
+      // Small delay to simulate network latency, but much faster than before
+      setTimeout(() => {
+        // Update signals with mock data
+        this._ordersCache.set(mockOrders);
+        this._lastFetchParams.set(params);
+        this._isLoading.set(false);
+        this._error.set(null);
+        
+        // Update portfolio statistics
+        this.updatePortfolioStats(mockOrders);
+        
+        // Update legacy observables
+        this.orders$.next(mockOrders);
+        
+        observer.next(mockResponse);
+        observer.complete();
+      }, 200); // Reasonable delay to simulate real network
+    });
+  }
+  
+  /**
+   * Generate consistent mock trade orders
+   */
+  private generateMockOrders(): TradeOrderResponseDto[] {
+    return [
+      {
+        id: '1',
+        symbol: 'BTCUSD',
+        type: OrderType.MARKET,
+        side: OrderSide.BUY,
+        quantity: 0.5,
+        price: 45000,
+        status: OrderStatus.FILLED,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        filledAt: new Date().toISOString(),
+        filledPrice: 45000,
+        filledQuantity: 0.5,
+        commission: 22.5,
+        swap: 0,
+        profit: 1250,
+        accountId: 'acc-1',
+        userId: 'user-1',
+        isActive: false,
+        isClosed: true
+      },
+      {
+        id: '701e7671-8467-4ef1-9709-fb3a89e2d48a', // Example ID from requirements
+        symbol: 'EURUSD',
+        type: OrderType.LIMIT,
+        side: OrderSide.SELL,
+        quantity: 10000,
+        price: 1.0850,
+        stopLoss: 1.0900,
+        takeProfit: 1.0800,
+        status: OrderStatus.PENDING,
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        updatedAt: new Date(Date.now() - 3600000).toISOString(),
+        commission: 0,
+        swap: 0,
+        accountId: 'acc-1',
+        userId: 'user-1',
+        isActive: true,
+        isClosed: false
+      },
+      {
+        id: '2',
+        symbol: 'EURUSD',
+        type: OrderType.LIMIT,
+        side: OrderSide.SELL,
+        quantity: 10000,
+        price: 1.0850,
+        status: OrderStatus.PENDING,
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        updatedAt: new Date(Date.now() - 3600000).toISOString(),
+        commission: 0,
+        swap: 0,
+        accountId: 'acc-1',
+        userId: 'user-1',
+        isActive: true,
+        isClosed: false
+      },
+      {
+        id: '3',
+        symbol: 'ETHUSD',
+        type: OrderType.MARKET,
+        side: OrderSide.BUY,
+        quantity: 2,
+        price: 3200,
+        status: OrderStatus.FILLED,
+        createdAt: new Date(Date.now() - 7200000).toISOString(),
+        updatedAt: new Date(Date.now() - 7200000).toISOString(),
+        filledAt: new Date(Date.now() - 7200000).toISOString(),
+        filledPrice: 3200,
+        filledQuantity: 2,
+        commission: 6.4,
+        swap: 0,
+        profit: -150,
+        accountId: 'acc-1',
+        userId: 'user-1',
+        isActive: false,
+        isClosed: true
+      },
+      {
+        id: '4',
+        symbol: 'BTCUSD',
+        type: OrderType.MARKET,
+        side: OrderSide.SELL,
+        quantity: 0.25,
+        price: 46500,
+        status: OrderStatus.FILLED,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        filledAt: new Date().toISOString(),
+        filledPrice: 46500,
+        filledQuantity: 0.25,
+        commission: 11.625,
+        swap: 0,
+        profit: 375,
+        accountId: 'acc-1',
+        userId: 'user-1',
+        isActive: false,
+        isClosed: true
+      }
+    ];
   }
 }

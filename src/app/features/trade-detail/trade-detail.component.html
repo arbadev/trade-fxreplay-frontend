@@ -1,0 +1,342 @@
+<div class="trade-detail" [attr.data-status]="order()?.status">
+  <!-- Loading State -->
+  @if (isLoading()) {
+    <div class="trade-detail__loading">
+      <app-loading-spinner size="lg" message="Loading order details..."></app-loading-spinner>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (error()) {
+    <div class="trade-detail__error">
+      <app-card variant="outlined" padding="lg">
+        <div class="error-content">
+          <svg class="error-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <h2 class="error-title">Failed to Load Order</h2>
+          <p class="error-message">{{ error() }}</p>
+          <div class="error-actions">
+            <app-button 
+              variant="primary" 
+              (onClick)="handleAction({ type: 'retry' })"
+              aria-label="Retry loading order">
+              Retry
+            </app-button>
+            <app-button 
+              variant="secondary" 
+              (onClick)="handleAction({ type: 'back' })"
+              aria-label="Go back to trades list">
+              Back to Trades
+            </app-button>
+          </div>
+        </div>
+      </app-card>
+    </div>
+  }
+
+  <!-- Success State - Order Details -->
+  @else if (order()) {
+    <div class="trade-detail__content">
+      <!-- Header with Back Navigation -->
+      <header class="trade-detail__header">
+        <div class="header-nav">
+          <app-button 
+            variant="ghost" 
+            size="sm"
+            (onClick)="handleAction({ type: 'back' })"
+            aria-label="Go back to trades list">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Back
+          </app-button>
+          <div class="header-actions">
+            <app-button 
+              variant="ghost" 
+              size="sm"
+              (onClick)="handleAction({ type: 'share' })"
+              aria-label="Share order details">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </app-button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Hero Section -->
+      <section class="trade-detail__hero">
+        <app-card variant="trade" padding="lg" [tradeSide]="order()!.side">
+          <div class="hero-content">
+            <div class="hero-primary">
+              <div class="symbol-display">
+                <h1 class="symbol-pair" [attr.aria-label]="'Trading pair: ' + enhancedSymbol()?.displayFormat">
+                  {{ enhancedSymbol()?.displayFormat }}
+                </h1>
+                <span class="asset-class">{{ enhancedSymbol()?.assetClass | titlecase }}</span>
+              </div>
+              
+              <div class="trade-side-hero">
+                <span class="side-indicator side-indicator--{{ order()!.side }}" 
+                      [attr.aria-label]="order()!.side.toUpperCase() + ' order'">
+                  {{ order()!.side.toUpperCase() }}
+                  @if (order()!.side === 'buy') {
+                    <svg class="side-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="7 13 12 8 17 13"></polyline>
+                      <polyline points="12 18 12 8"></polyline>
+                    </svg>
+                  } @else {
+                    <svg class="side-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <polyline points="12 5 12 15"></polyline>
+                    </svg>
+                  }
+                </span>
+              </div>
+            </div>
+
+            @if (pnlDisplay()) {
+              <div class="hero-pnl">
+                <div class="pnl-amount pnl-amount--{{ pnlDisplay()!.status }}">
+                  <span class="pnl-value" [attr.aria-label]="'Profit and loss: ' + pnlDisplay()!.formatted">
+                    {{ pnlDisplay()!.formatted }}
+                  </span>
+                  @if (pnlDisplay()!.formattedPercentage) {
+                    <span class="pnl-percentage" [attr.aria-label]="'Percentage: ' + pnlDisplay()!.formattedPercentage">
+                      {{ pnlDisplay()!.formattedPercentage }}
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="hero-status">
+              <app-badge 
+                [variant]="statusBadgeVariant()"
+                size="md"
+                [attr.aria-label]="'Order status: ' + formatStatus(order()!.status)">
+                {{ formatStatus(order()!.status) }}
+              </app-badge>
+            </div>
+          </div>
+        </app-card>
+      </section>
+
+      <!-- Order Details Grid -->
+      <section class="trade-detail__details">
+        <div class="details-grid">
+          <!-- Position Information -->
+          <app-card variant="default" padding="md">
+            <h2 class="section-title">Position Details</h2>
+            <div class="detail-rows">
+              <div class="detail-row">
+                <span class="detail-label">Position Size</span>
+                <span class="detail-value" [attr.aria-label]="'Position size: ' + formatQuantity(order()!.quantity) + ' ' + enhancedSymbol()?.baseCurrency">
+                  {{ formatQuantity(order()!.quantity) }} {{ enhancedSymbol()?.baseCurrency }}
+                </span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Order Type</span>
+                <span class="detail-value">{{ order()!.type.toUpperCase() }}</span>
+              </div>
+
+              @if (order()!.price) {
+                <div class="detail-row">
+                  <span class="detail-label">Entry Price</span>
+                  <span class="detail-value detail-value--price" [attr.aria-label]="'Entry price: ' + formatPrice(order()!.price!)">
+                    {{ formatPrice(order()!.price!) }}
+                  </span>
+                </div>
+              }
+
+              @if (order()!.filledPrice) {
+                <div class="detail-row">
+                  <span class="detail-label">Fill Price</span>
+                  <span class="detail-value detail-value--price" [attr.aria-label]="'Fill price: ' + formatPrice(order()!.filledPrice!)">
+                    {{ formatPrice(order()!.filledPrice!) }}
+                  </span>
+                </div>
+              }
+
+              @if (order()!.filledQuantity && order()!.filledQuantity !== order()!.quantity) {
+                <div class="detail-row">
+                  <span class="detail-label">Filled Quantity</span>
+                  <span class="detail-value">
+                    {{ formatQuantity(order()!.filledQuantity!) }} / {{ formatQuantity(order()!.quantity) }}
+                  </span>
+                </div>
+              }
+            </div>
+          </app-card>
+
+          <!-- Risk Management -->
+          @if (order()!.stopLoss || order()!.takeProfit) {
+            <app-card variant="default" padding="md">
+              <h2 class="section-title">Risk Management</h2>
+              <div class="detail-rows">
+                @if (order()!.stopLoss) {
+                  <div class="detail-row detail-row--risk">
+                    <span class="detail-label">Stop Loss</span>
+                    <span class="detail-value detail-value--loss" [attr.aria-label]="'Stop loss: ' + formatPrice(order()!.stopLoss!)">
+                      {{ formatPrice(order()!.stopLoss!) }}
+                    </span>
+                  </div>
+                }
+
+                @if (order()!.takeProfit) {
+                  <div class="detail-row detail-row--risk">
+                    <span class="detail-label">Take Profit</span>
+                    <span class="detail-value detail-value--profit" [attr.aria-label]="'Take profit: ' + formatPrice(order()!.takeProfit!)">
+                      {{ formatPrice(order()!.takeProfit!) }}
+                    </span>
+                  </div>
+                }
+              </div>
+            </app-card>
+          }
+
+          <!-- Financial Summary -->
+          <app-card variant="default" padding="md">
+            <h2 class="section-title">Financial Summary</h2>
+            <div class="detail-rows">
+              @if (order()!.commission) {
+                <div class="detail-row">
+                  <span class="detail-label">Commission</span>
+                  <span class="detail-value detail-value--fee">
+                    {{ order()!.commission | currency:'USD':'symbol':'1.2-2' }}
+                  </span>
+                </div>
+              }
+
+              @if (order()!.swap) {
+                <div class="detail-row">
+                  <span class="detail-label">Swap</span>
+                  <span class="detail-value detail-value--fee">
+                    {{ order()!.swap | currency:'USD':'symbol':'1.2-2' }}
+                  </span>
+                </div>
+              }
+
+              @if (order()!.profit !== undefined) {
+                <div class="detail-row detail-row--highlight">
+                  <span class="detail-label">Net P&L</span>
+                  <span class="detail-value detail-value--{{ pnlDisplay()?.status }}" [attr.aria-label]="'Net profit and loss: ' + pnlDisplay()?.formatted">
+                    {{ pnlDisplay()?.formatted }}
+                  </span>
+                </div>
+              }
+            </div>
+          </app-card>
+
+          <!-- Timing Information -->
+          <app-card variant="default" padding="md">
+            <h2 class="section-title">Timing</h2>
+            <div class="detail-rows">
+              <div class="detail-row">
+                <span class="detail-label">Created</span>
+                <span class="detail-value" [attr.aria-label]="'Created: ' + formatDateTime(order()!.createdAt)">
+                  {{ formatDateTime(order()!.createdAt) }}
+                </span>
+              </div>
+
+              @if (order()!.filledAt) {
+                <div class="detail-row">
+                  <span class="detail-label">Filled</span>
+                  <span class="detail-value" [attr.aria-label]="'Filled: ' + formatDateTime(order()!.filledAt!)">
+                    {{ formatDateTime(order()!.filledAt!) }}
+                  </span>
+                </div>
+              }
+
+              @if (durationText()) {
+                <div class="detail-row">
+                  <span class="detail-label">Duration</span>
+                  <span class="detail-value" [attr.aria-label]="'Duration: ' + durationText()">
+                    {{ durationText() }}
+                  </span>
+                </div>
+              }
+            </div>
+          </app-card>
+
+          <!-- Order Metadata -->
+          <app-card variant="default" padding="md">
+            <h2 class="section-title">Order Information</h2>
+            <div class="detail-rows">
+              <div class="detail-row">
+                <span class="detail-label">Order ID</span>
+                <span class="detail-value detail-value--mono" [attr.aria-label]="'Order ID: ' + order()!.id">
+                  {{ order()!.id }}
+                </span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Account ID</span>
+                <span class="detail-value detail-value--mono">{{ order()!.accountId }}</span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">Last Updated</span>
+                <span class="detail-value">{{ formatDateTime(order()!.updatedAt) }}</span>
+              </div>
+            </div>
+          </app-card>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <section class="trade-detail__actions">
+        <div class="actions-grid">
+          @if (canModify()) {
+            <app-button 
+              variant="secondary" 
+              size="lg"
+              (onClick)="handleAction({ type: 'modify' })"
+              [attr.aria-label]="'Modify order ' + order()!.symbol">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Modify Order
+            </app-button>
+          }
+
+          @if (canClose()) {
+            <app-button 
+              [variant]="order()!.side === 'buy' ? 'sell' : 'buy'"
+              size="lg"
+              (onClick)="handleAction({ type: 'close' })"
+              [attr.aria-label]="'Close order ' + order()!.symbol">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              Close Position
+            </app-button>
+          }
+
+          <app-button 
+            variant="ghost" 
+            size="lg"
+            (onClick)="handleAction({ type: 'duplicate' })"
+            [attr.aria-label]="'Duplicate order ' + order()!.symbol">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            Duplicate Order
+          </app-button>
+        </div>
+      </section>
+    </div>
+  }
+</div>

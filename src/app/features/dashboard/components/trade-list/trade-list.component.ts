@@ -1,4 +1,4 @@
-import { Component, input, output, signal, computed, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, signal, computed, inject, OnInit, ChangeDetectionStrategy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -303,12 +303,19 @@ export class TradeListComponent implements OnInit {
   });
 
   constructor() {
-    // Subscribe to orders from the service
-    this.tradeOrderService.orders$
-      .pipe(takeUntilDestroyed())
-      .subscribe(orders => {
-        this.updateOrdersState(orders);
-      });
+    // Use signal-based orders from the service
+    effect(() => {
+      const orders = this.tradeOrderService.orders();
+      const isLoading = this.tradeOrderService.isLoading();
+      const error = this.tradeOrderService.error();
+      
+      this.state.update(state => ({
+        ...state,
+        orders: orders,
+        loading: isLoading && orders.length === 0,
+        error: error
+      }));
+    });
   }
 
   ngOnInit(): void {

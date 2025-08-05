@@ -1,10 +1,20 @@
-import { Component, input, output, signal, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, signal, computed, inject, ChangeDetectionStrategy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import { OrderStatus } from '../../../../core/models/trade-order.interface';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { TradeOrderResponseDto } from '../../../../core/models/trade-order.interface';
+// Badge component removed since we're not using it in the new design
+import { TradeOrderService } from '../../../../core/services/trade-order.service';
 
 export type FilterType = 'all' | 'active' | 'pending' | 'closed' | 'profitable' | 'today';
+
+export interface ProfessionalFilter {
+  id: FilterType;
+  label: string;
+  count: number;
+  description: string;
+  active: boolean;
+  icon?: string;
+}
 
 export interface FilterOption {
   id: FilterType;
@@ -22,52 +32,50 @@ export interface FilterChangeEvent {
 @Component({
   selector: 'app-quick-filters',
   standalone: true,
-  imports: [CommonModule, BadgeComponent],
+  imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="quick-filters" role="group" [attr.aria-label]="'Trade filters'">
-      <div class="quick-filters__header">
-        <h3 class="quick-filters__title">Quick Filters</h3>
+    <div class="professional-filters" role="group" [attr.aria-label]="'Professional trade filters'">
+      <div class="professional-filters__header">
+        <h3 class="professional-filters__title">Filters</h3>
         @if (hasActiveFilters()) {
           <button 
-            class="quick-filters__clear"
+            class="professional-filters__clear"
             (click)="clearAllFilters()"
-            [attr.aria-label]="'Clear all active filters'">
-            Clear All
+            [attr.aria-label]="'Clear active filter'">
+            Show All
           </button>
         }
       </div>
       
-      <div class="quick-filters__container">
-        <div class="quick-filters__scroll" [attr.aria-label]="'Scrollable filter options'">
-          @for (filter of availableFilters(); track filter.id) {
+      <div class="professional-filters__container">
+        <div class="professional-filters__grid" [attr.aria-label]="'Filter options'">
+          @for (filter of professionalFilters(); track filter.id) {
             <button
-              class="filter-pill"
-              [class.filter-pill--active]="isActive(filter.id)"
-              [class.filter-pill--profitable]="filter.id === 'profitable'"
+              class="professional-filter"
+              [class.professional-filter--active]="filter.active"
+              [class.professional-filter--profitable]="filter.id === 'profitable'"
               [disabled]="disabled()"
-              (click)="toggleFilter(filter)"
-              [attr.aria-pressed]="isActive(filter.id)"
+              (click)="selectFilter(filter)"
+              [attr.aria-pressed]="filter.active"
               [attr.aria-label]="getFilterAriaLabel(filter)">
               
               @if (filter.icon) {
-                <span class="filter-pill__icon" [innerHTML]="filter.icon"></span>
+                <span class="professional-filter__icon" [innerHTML]="filter.icon"></span>
               }
               
-              <span class="filter-pill__label">{{ filter.label }}</span>
+              <div class="professional-filter__content">
+                <span class="professional-filter__label">{{ filter.label }}</span>
+                @if (showCounts()) {
+                  <span class="professional-filter__count">
+                    {{ filter.count }}
+                  </span>
+                }
+              </div>
               
-              @if (filter.count !== undefined && showCounts()) {
-                <app-badge 
-                  [count]="filter.count"
-                  [variant]="getBadgeVariant(filter)"
-                  [size]="'sm'"
-                  class="filter-pill__badge">
-                </app-badge>
-              }
-              
-              @if (isActive(filter.id)) {
-                <span class="filter-pill__active-indicator" aria-hidden="true">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              @if (filter.active) {
+                <span class="professional-filter__active-indicator" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="m9 12 2 2 4-4"></path>
                   </svg>
                 </span>
@@ -78,26 +86,31 @@ export interface FilterChangeEvent {
         
         @if (showCustomFilter()) {
           <button 
-            class="filter-pill filter-pill--custom"
+            class="professional-filter professional-filter--custom"
             (click)="openCustomFilter()"
-            [attr.aria-label]="'Open custom filter options'">
-            <span class="filter-pill__icon">
+            [attr.aria-label]="'Open advanced filter options'">
+            <span class="professional-filter__icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
               </svg>
             </span>
-            <span class="filter-pill__label">Custom</span>
+            <div class="professional-filter__content">
+              <span class="professional-filter__label">Advanced</span>
+            </div>
           </button>
         }
       </div>
       
-      @if (activeFiltersCount() > 0) {
-        <div class="quick-filters__summary" [attr.aria-live]="'polite'">
-          <span class="summary-text">
-            {{ getFilterSummary() }}
+      <div class="professional-filters__summary" [attr.aria-live]="'polite'">
+        <span class="summary-text">
+          {{ getFilterSummary() }}
+        </span>
+        @if (hasActiveFilters()) {
+          <span class="summary-count">
+            {{ getActiveFilterCount() }} trades
           </span>
-        </div>
-      }
+        }
+      </div>
     </div>
   `,
   styleUrl: './quick-filters.component.scss'
@@ -115,120 +128,100 @@ export class QuickFiltersComponent {
   readonly customFilterClick = output<void>();
   readonly clearFilters = output<void>();
 
-  // Internal state
-  private readonly activeFilters = signal<Set<FilterType>>(new Set(['all']));
+  // Inject services for real-time data
+  private readonly tradeOrderService = inject(TradeOrderService);
+  
+  // Internal state - simplified to single active filter
+  private readonly currentActiveFilter = signal<FilterType>('all');
 
-  // Default filter options
-  private readonly defaultFilters: FilterOption[] = [
-    {
-      id: 'all',
-      label: 'All',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <circle cx="12" cy="12" r="10"></circle>
-               <path d="m9 12 2 2 4-4"></path>
-             </svg>`,
-      description: 'Show all trade orders'
-    },
-    {
-      id: 'active',
-      label: 'Active',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <circle cx="12" cy="12" r="10"></circle>
-               <polyline points="12,6 12,12 16,14"></polyline>
-             </svg>`,
-      description: 'Show active and pending orders'
-    },
-    {
-      id: 'pending',
-      label: 'Pending',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <circle cx="12" cy="12" r="10"></circle>
-               <polyline points="12,6 12,12 16,14"></polyline>
-             </svg>`,
-      description: 'Show pending orders only'
-    },
-    {
-      id: 'closed',
-      label: 'Closed',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <path d="m9 12 2 2 4-4"></path>
-               <path d="M21 12c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM3 12c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM12 21c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM12 3c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z"></path>
-             </svg>`,
-      description: 'Show completed orders'
-    },
-    {
-      id: 'profitable',
-      label: 'Profitable',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-             </svg>`,
-      description: 'Show profitable trades only'
-    },
-    {
-      id: 'today',
-      label: 'Today',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-               <line x1="16" y1="2" x2="16" y2="6"></line>
-               <line x1="8" y1="2" x2="8" y2="6"></line>
-               <line x1="3" y1="10" x2="21" y2="10"></line>
-             </svg>`,
-      description: 'Show today\'s orders'
-    }
-  ];
+  // Default filters are now computed in professionalFilters - removed static array
 
-  // Computed properties
+  // Computed properties with real-time counts using service signals
+  readonly professionalFilters = computed(() => {
+    const orders = this.tradeOrderService.orders();
+    const activeFilter = this.currentActiveFilter();
+    
+    return [
+      {
+        id: 'all' as FilterType,
+        label: 'All Trades',
+        count: orders.length,
+        description: 'Show all trading activity',
+        active: activeFilter === 'all',
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <circle cx="12" cy="12" r="10"></circle>
+                 <path d="m9 12 2 2 4-4"></path>
+               </svg>`
+      },
+      {
+        id: 'active' as FilterType,
+        label: 'Active Positions',
+        count: this.tradeOrderService.activeOrders().length,
+        description: 'Open trades and pending orders',
+        active: activeFilter === 'active',
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <circle cx="12" cy="12" r="10"></circle>
+                 <polyline points="12,6 12,12 16,14"></polyline>
+               </svg>`
+      },
+      {
+        id: 'profitable' as FilterType,
+        label: 'Profitable',
+        count: this.tradeOrderService.profitableOrders().length,
+        description: 'Trades in profit',
+        active: activeFilter === 'profitable',
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+               </svg>`
+      },
+      {
+        id: 'today' as FilterType,
+        label: 'Today\'s Trades',
+        count: this.tradeOrderService.todayOrders().length,
+        description: 'Today\'s trading activity',
+        active: activeFilter === 'today',
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                 <line x1="16" y1="2" x2="16" y2="6"></line>
+                 <line x1="8" y1="2" x2="8" y2="6"></line>
+                 <line x1="3" y1="10" x2="21" y2="10"></line>
+               </svg>`
+      }
+    ];
+  });
+
   readonly availableFilters = computed(() => {
     const customFilters = this.filters();
-    return customFilters.length > 0 ? customFilters : this.defaultFilters;
+    return customFilters.length > 0 ? customFilters : this.professionalFilters();
   });
 
   readonly hasActiveFilters = computed(() => {
-    const active = this.activeFilters();
-    return active.size > 1 || (active.size === 1 && !active.has('all'));
+    return this.currentActiveFilter() !== 'all';
   });
 
   readonly activeFiltersCount = computed(() => {
-    const active = this.activeFilters();
-    return active.has('all') ? 0 : active.size;
+    return this.hasActiveFilters() ? 1 : 0;
   });
 
   constructor() {
-    // Initialize with the active filter input
-    const initialFilter = this.activeFilter();
-    if (initialFilter && initialFilter !== 'all') {
-      this.activeFilters.set(new Set([initialFilter]));
-    }
+    // Initialize with the active filter input and keep it synced
+    effect(() => {
+      const inputFilter = this.activeFilter();
+      if (inputFilter !== this.currentActiveFilter()) {
+        this.currentActiveFilter.set(inputFilter);
+      }
+    });
   }
 
   protected isActive(filterId: FilterType): boolean {
-    return this.activeFilters().has(filterId);
+    return this.currentActiveFilter() === filterId;
   }
 
   protected toggleFilter(filter: FilterOption): void {
     if (this.disabled()) return;
 
-    const current = new Set(this.activeFilters());
-    
-    if (filter.id === 'all') {
-      // Selecting 'all' clears other filters
-      this.activeFilters.set(new Set(['all']));
-    } else {
-      // Remove 'all' if selecting a specific filter
-      current.delete('all');
-      
-      if (current.has(filter.id)) {
-        current.delete(filter.id);
-        // If no filters remain, default to 'all'
-        if (current.size === 0) {
-          current.add('all');
-        }
-      } else {
-        current.add(filter.id);
-      }
-      
-      this.activeFilters.set(current);
-    }
+    // Single-select logic - much simpler!
+    this.currentActiveFilter.set(filter.id);
 
     // Emit the filter change event
     this.filterChange.emit({
@@ -236,9 +229,27 @@ export class QuickFiltersComponent {
       filter: filter
     });
   }
+  
+  protected selectFilter(filter: ProfessionalFilter): void {
+    if (this.disabled()) return;
+
+    // Single-select logic for professional filters
+    this.currentActiveFilter.set(filter.id);
+
+    // Emit the filter change event
+    this.filterChange.emit({
+      filterId: filter.id,
+      filter: {
+        id: filter.id,
+        label: filter.label,
+        count: filter.count,
+        description: filter.description
+      }
+    });
+  }
 
   protected clearAllFilters(): void {
-    this.activeFilters.set(new Set(['all']));
+    this.currentActiveFilter.set('all');
     this.clearFilters.emit();
   }
 
@@ -260,26 +271,33 @@ export class QuickFiltersComponent {
     }
   }
 
-  protected getFilterAriaLabel(filter: FilterOption): string {
+  protected getFilterAriaLabel(filter: FilterOption | ProfessionalFilter): string {
     const isActiveText = this.isActive(filter.id) ? 'active' : 'inactive';
-    const countText = filter.count !== undefined ? ` (${filter.count} items)` : '';
+    const countText = filter.count !== undefined ? ` (${filter.count} trades)` : '';
     return `${filter.label} filter, ${isActiveText}${countText}. ${filter.description || ''}`;
   }
 
   protected getFilterSummary(): string {
-    const active = this.activeFilters();
-    const count = active.size;
+    const activeFilter = this.currentActiveFilter();
     
-    if (active.has('all')) {
+    if (activeFilter === 'all') {
       return 'Showing all orders';
     }
     
-    if (count === 1) {
-      const filterId = Array.from(active)[0];
-      const filter = this.availableFilters().find(f => f.id === filterId);
-      return `Showing ${filter?.label.toLowerCase()} orders`;
-    }
-    
-    return `${count} filters active`;
+    const filter = this.availableFilters().find(f => f.id === activeFilter);
+    return `Showing ${filter?.label.toLowerCase() || 'filtered'} orders`;
+  }
+  
+  // Removed getCachedOrders method - now using service signals directly
+  
+  private isToday(dateString: string): boolean {
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  }
+  
+  protected getActiveFilterCount(): number {
+    const activeFilter = this.professionalFilters().find(f => f.active);
+    return activeFilter?.count || 0;
   }
 }

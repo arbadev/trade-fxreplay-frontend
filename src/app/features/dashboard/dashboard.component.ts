@@ -1,4 +1,4 @@
-import { Component, signal, computed, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, ChangeDetectionStrategy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -149,8 +149,8 @@ export class DashboardComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly tradeOrderService = inject(TradeOrderService);
 
-  // Convert orders observable to signal for reactivity
-  private readonly orders = toSignal(this.tradeOrderService.orders$, { initialValue: [] });
+  // Use signal-based orders directly from service
+  private readonly orders = this.tradeOrderService.orders;
 
   // Component state
   protected readonly isInitialLoading = signal<boolean>(true);
@@ -222,7 +222,7 @@ export class DashboardComponent implements OnInit {
 
   // Computed subtitle text
   protected readonly getSubtitleText = computed(() => {
-    const orders = this.tradeOrderService.getCachedOrders();
+    const orders = this.orders();
     const activeCount = orders.filter(order => order.isActive).length;
     
     if (orders.length === 0) {
@@ -237,20 +237,31 @@ export class DashboardComponent implements OnInit {
   });
 
   constructor() {
-    // Subscribe to service state for error handling
-    this.tradeOrderService.orders$
-      .pipe(takeUntilDestroyed())
-      .subscribe({
-        next: (_orders) => {
-          this.isInitialLoading.set(false);
-          this.hasError.set(false);
-        },
-        error: (error) => {
-          this.isInitialLoading.set(false);
-          this.hasError.set(true);
-          this.errorMessage.set(error.message || 'Failed to load dashboard data');
-        }
-      });
+    // Use effects to react to service signal changes
+    // Monitor loading state from service
+    effect(() => {
+      const isServiceLoading = this.tradeOrderService.isLoading();
+      const hasOrders = this.orders().length > 0;
+      
+      // Only show initial loading if we have no orders and service is loading
+      if (!hasOrders && isServiceLoading) {
+        this.isInitialLoading.set(true);
+      } else {
+        this.isInitialLoading.set(false);
+      }
+    });
+    
+    // Monitor error state from service
+    effect(() => {
+      const serviceError = this.tradeOrderService.error();
+      if (serviceError) {
+        this.hasError.set(true);
+        this.errorMessage.set(serviceError);
+      } else {
+        this.hasError.set(false);
+        this.errorMessage.set('');
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -376,6 +387,6 @@ export class DashboardComponent implements OnInit {
   }
 
   private getActiveOrdersCount(): number {
-    return this.tradeOrderService.getCachedOrders().filter(order => order.isActive).length;
+    return this.orders().filter(order => order.isActive).length;
   }
 }

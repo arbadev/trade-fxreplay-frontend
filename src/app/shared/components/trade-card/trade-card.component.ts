@@ -1,7 +1,7 @@
 import { Component, input, output, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import { TradeOrderResponseDto, OrderStatus, OrderSide } from '../../../core/models/trade-order.interface';
+import { TradeOrderResponseDto } from '../../../core/models/trade-order.interface';
 import { CardComponent } from '../card/card.component';
 import { BadgeComponent } from '../badge/badge.component';
 import { ButtonComponent } from '../button/button.component';
@@ -25,16 +25,47 @@ export interface TradeCardAction {
       [class]="cardClasses()"
       (click)="handleCardClick($event)">
       
-      <!-- Card Header -->
-      <div class="trade-card__header" slot="header">
-        <div class="trade-card__symbol-section">
-          <h3 class="trade-card__symbol" [attr.aria-label]="'Trading pair: ' + formattedSymbol()">
-            {{ formattedSymbol() }}
-          </h3>
-          <div class="trade-card__side-indicator" [class]="sideClasses()">
-            {{ order().side.toUpperCase() }}
+      <!-- PRIMARY LEVEL: Hero Information -->
+      <div class="trade-card__primary" slot="header">
+        <div class="trade-card__currency-hero">
+          <div class="currency-pair">
+            <span class="currency-pair__display" [attr.aria-label]="'Trading pair: ' + enhancedSymbol().displayFormat">
+              {{ enhancedSymbol().displayFormat }}
+            </span>
+            <span class="currency-pair__class">{{ enhancedSymbol().assetClass }}</span>
+          </div>
+          <div class="trade-side">
+            <span class="trade-side__indicator trade-side__indicator--{{ order().side }}" [attr.aria-label]="order().side.toUpperCase() + ' order'">
+              {{ order().side.toUpperCase() }}
+              @if (order().side === 'buy') {
+                <svg class="trade-side__arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="7 13 12 8 17 13"></polyline>
+                  <polyline points="12 18 12 8"></polyline>
+                </svg>
+              } @else {
+                <svg class="trade-side__arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <polyline points="12 5 12 15"></polyline>
+                </svg>
+              }
+            </span>
           </div>
         </div>
+        
+        @if (pnlDisplay()) {
+          <div class="trade-card__pnl-hero">
+            <div class="pnl-display pnl-display--{{ pnlDisplay()!.status }}">
+              <span class="pnl-display__amount" [attr.aria-label]="'Profit and loss: ' + pnlDisplay()!.formatted">
+                {{ pnlDisplay()!.formatted }}
+              </span>
+              @if (pnlDisplay()!.formattedPercentage) {
+                <span class="pnl-display__percentage" [attr.aria-label]="'Percentage: ' + pnlDisplay()!.formattedPercentage">
+                  {{ pnlDisplay()!.formattedPercentage }}
+                </span>
+              }
+            </div>
+          </div>
+        }
         
         <div class="trade-card__status-section">
           <app-badge 
@@ -43,114 +74,113 @@ export interface TradeCardAction {
             class="trade-card__status-badge">
             {{ formatStatus() }}
           </app-badge>
-          
-          @if (showDuration() && durationText()) {
-            <span class="trade-card__duration" [attr.aria-label]="'Order duration: ' + durationText()">
-              {{ durationText() }}
-            </span>
-          }
         </div>
       </div>
       
-      <!-- Card Content -->
-      <div class="trade-card__content">
-        <!-- Price Information -->
-        <div class="trade-card__price-section">
-          <div class="trade-card__price-row">
-            <span class="trade-card__price-label">Entry Price</span>
-            <span class="trade-card__price-value" [attr.aria-label]="'Entry price: ' + formatPrice(order().price)">
-              {{ formatPrice(order().price) }}
+      <!-- SECONDARY LEVEL: Supporting Information -->
+      <div class="trade-card__secondary">
+        <div class="trade-details-grid">
+          <div class="trade-detail">
+            <span class="trade-detail__label">Position Size</span>
+            <span class="trade-detail__value" [attr.aria-label]="'Position size: ' + formatQuantityWithUnit()">
+              {{ formatQuantityWithUnit() }}
             </span>
           </div>
           
-          @if (order().filledPrice && order().filledPrice !== order().price) {
-            <div class="trade-card__price-row">
-              <span class="trade-card__price-label">Fill Price</span>
-              <span class="trade-card__price-value" [attr.aria-label]="'Fill price: ' + formatPrice(order().filledPrice)">
-                {{ formatPrice(order().filledPrice) }}
+          <div class="trade-detail">
+            <span class="trade-detail__label">Entry Price</span>
+            <span class="trade-detail__value" [attr.aria-label]="'Entry price: ' + formatPriceWithProfessionalPrecision(order().price!)">
+              {{ formatPriceWithProfessionalPrecision(order().price!) }}
+            </span>
+          </div>
+          
+          @if (order().status === 'filled' || order().isActive) {
+            <div class="trade-detail">
+              <span class="trade-detail__label">{{ order().isActive ? 'Current' : 'Exit' }} Price</span>
+              <span class="trade-detail__value" [attr.aria-label]="(order().isActive ? 'Current' : 'Exit') + ' price: ' + formatCurrentPrice()">
+                {{ formatCurrentPrice() }}
               </span>
             </div>
           }
           
+          <div class="trade-detail">
+            <span class="trade-detail__label">Order Type</span>
+            <span class="trade-detail__value">
+              {{ order().type.toUpperCase() }}
+            </span>
+          </div>
+          
           @if (order().stopLoss) {
-            <div class="trade-card__price-row trade-card__price-row--sl">
-              <span class="trade-card__price-label">Stop Loss</span>
-              <span class="trade-card__price-value trade-card__price-value--loss" [attr.aria-label]="'Stop loss: ' + formatPrice(order().stopLoss)">
-                {{ formatPrice(order().stopLoss) }}
+            <div class="trade-detail trade-detail--risk">
+              <span class="trade-detail__label">Stop Loss</span>
+              <span class="trade-detail__value trade-detail__value--loss" [attr.aria-label]="'Stop loss: ' + formatPriceWithProfessionalPrecision(order().stopLoss!)">
+                {{ formatPriceWithProfessionalPrecision(order().stopLoss!) }}
               </span>
             </div>
           }
           
           @if (order().takeProfit) {
-            <div class="trade-card__price-row trade-card__price-row--tp">
-              <span class="trade-card__price-label">Take Profit</span>
-              <span class="trade-card__price-value trade-card__price-value--profit" [attr.aria-label]="'Take profit: ' + formatPrice(order().takeProfit)">
-                {{ formatPrice(order().takeProfit) }}
-              </span>
-            </div>
-          }
-        </div>
-        
-        <!-- Quantity and P&L -->
-        <div class="trade-card__metrics">
-          <div class="trade-card__metric">
-            <span class="trade-card__metric-label">Quantity</span>
-            <span class="trade-card__metric-value" [attr.aria-label]="'Quantity: ' + formatQuantity()">
-              {{ formatQuantity() }}
-            </span>
-          </div>
-          
-          @if (order().profit !== undefined) {
-            <div class="trade-card__metric trade-card__metric--pnl">
-              <span class="trade-card__metric-label">P&L</span>
-              <span 
-                class="trade-card__metric-value trade-card__pnl" 
-                [class]="pnlClasses()"
-                [attr.aria-label]="'Profit and loss: ' + formatPnL()">
-                {{ formatPnL() }}
+            <div class="trade-detail trade-detail--risk">
+              <span class="trade-detail__label">Take Profit</span>
+              <span class="trade-detail__value trade-detail__value--profit" [attr.aria-label]="'Take profit: ' + formatPriceWithProfessionalPrecision(order().takeProfit!)">
+                {{ formatPriceWithProfessionalPrecision(order().takeProfit!) }}
               </span>
             </div>
           }
           
           @if (showFees() && (order().commission || order().swap)) {
-            <div class="trade-card__metric">
-              <span class="trade-card__metric-label">Fees</span>
-              <span class="trade-card__metric-value trade-card__fees" [attr.aria-label]="'Total fees: ' + formatFees()">
+            <div class="trade-detail">
+              <span class="trade-detail__label">Fees</span>
+              <span class="trade-detail__value trade-detail__fees" [attr.aria-label]="'Total fees: ' + formatFees()">
                 {{ formatFees() }}
               </span>
             </div>
           }
         </div>
-        
-        <!-- Expandable Details -->
-        @if (showExpandableDetails() && isExpanded()) {
-          <div class="trade-card__details" [@expandCollapse]>
-            <div class="trade-card__details-grid">
-              <div class="trade-card__detail-item">
-                <span class="trade-card__detail-label">Order ID</span>
-                <span class="trade-card__detail-value">{{ order().id.slice(-8) }}</span>
-              </div>
-              
-              <div class="trade-card__detail-item">
-                <span class="trade-card__detail-label">Created</span>
-                <span class="trade-card__detail-value">{{ formatDate(order().createdAt) }}</span>
-              </div>
-              
-              @if (order().filledAt) {
-                <div class="trade-card__detail-item">
-                  <span class="trade-card__detail-label">Filled</span>
-                  <span class="trade-card__detail-value">{{ formatDate(order().filledAt!) }}</span>
-                </div>
-              }
-              
-              <div class="trade-card__detail-item">
-                <span class="trade-card__detail-label">Type</span>
-                <span class="trade-card__detail-value">{{ order().type.toUpperCase() }}</span>
-              </div>
-            </div>
-          </div>
+      </div>
+
+      <!-- TERTIARY LEVEL: Metadata -->
+      <div class="trade-card__tertiary">
+        <span class="trade-meta" [attr.aria-label]="'Order ID: ' + order().id.slice(-8)">
+          #{{ order().id.slice(-8) }}
+        </span>
+        <span class="trade-meta" [attr.aria-label]="'Created: ' + formatTimestamp()">
+          {{ formatTimestamp() }}
+        </span>
+        @if (showDuration() && durationText()) {
+          <span class="trade-meta" [attr.aria-label]="'Duration: ' + durationText()">
+            {{ durationText() }}
+          </span>
         }
       </div>
+        
+      <!-- Expandable Details (if needed) -->
+      @if (showExpandableDetails() && isExpanded()) {
+        <div class="trade-card__expandable" [@expandCollapse]>
+          <div class="trade-card__expandable-grid">
+            @if (order().filledAt) {
+              <div class="trade-detail">
+                <span class="trade-detail__label">Filled At</span>
+                <span class="trade-detail__value">{{ formatDate(order().filledAt!) }}</span>
+              </div>
+            }
+            
+            @if (order().commission) {
+              <div class="trade-detail">
+                <span class="trade-detail__label">Commission</span>
+                <span class="trade-detail__value">{{ formatCurrency(order().commission!) }}</span>
+              </div>
+            }
+            
+            @if (order().swap) {
+              <div class="trade-detail">
+                <span class="trade-detail__label">Swap</span>
+                <span class="trade-detail__value">{{ formatCurrency(order().swap!) }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
       
       <!-- Card Footer with Actions -->
       @if (showActions()) {
@@ -236,15 +266,70 @@ export class TradeCardComponent {
   // Internal state
   private readonly expanded = signal<boolean>(false);
 
+  // Professional trading precision configuration
+  private readonly ASSET_PRECISION: Record<string, number> = {
+    // Forex Major Pairs
+    'EURUSD': 5, 'GBPUSD': 5, 'AUDUSD': 5, 'NZDUSD': 5, 'USDCAD': 5, 'USDCHF': 5,
+    // Forex JPY Pairs  
+    'USDJPY': 3, 'EURJPY': 3, 'GBPJPY': 3, 'AUDJPY': 3, 'CADJPY': 3,
+    // Crypto Major
+    'BTCUSD': 2, 'ETHUSD': 2, 'LTCUSD': 4, 'ADAUSD': 6, 'DOTUSD': 4,
+    // Commodities
+    'XAUUSD': 2, 'XAGUSD': 4, 'WTIUSD': 2
+  };
+
+  // Quantity precision for different asset classes
+  private readonly QUANTITY_PRECISION: Record<string, number> = {
+    'BTCUSD': 8, 'ETHUSD': 6, 'EURUSD': 2, 'USDJPY': 2
+  };
+
   // Computed properties
-  readonly formattedSymbol = computed(() => {
+  readonly enhancedSymbol = computed(() => {
     const symbol = this.order().symbol;
-    return symbol.includes('/') ? symbol : symbol.replace(/([A-Z]{3})([A-Z]{3})/, '$1/$2');
+    const cleanSymbol = symbol.replace('/', '');
+    const match = cleanSymbol.match(/([A-Z]{3,4})([A-Z]{3,4})/);
+    
+    if (match) {
+      const [, base, quote] = match;
+      return {
+        baseCurrency: base,
+        quoteCurrency: quote,
+        displayFormat: `${base}/${quote}`,
+        assetClass: this.getAssetClass(cleanSymbol)
+      };
+    }
+    
+    // Fallback for existing formatted symbols
+    return {
+      baseCurrency: symbol.split('/')[0] || symbol.substring(0, 3),
+      quoteCurrency: symbol.split('/')[1] || symbol.substring(3),
+      displayFormat: symbol.includes('/') ? symbol : symbol.replace(/([A-Z]{3})([A-Z]{3})/, '$1/$2'),
+      assetClass: this.getAssetClass(symbol)
+    };
+  });
+
+  readonly formattedSymbol = computed(() => {
+    return this.enhancedSymbol().displayFormat;
+  });
+
+  readonly pnlDisplay = computed(() => {
+    const profit = this.order().profit;
+    if (profit === undefined) return null;
+    
+    const percentage = this.calculatePnLPercentage();
+    
+    return {
+      amount: profit,
+      formatted: this.formatPnL(),
+      percentage: percentage,
+      formattedPercentage: percentage ? `${percentage > 0 ? '+' : ''}${percentage.toFixed(2)}%` : null,
+      status: profit > 0 ? 'profit' : profit < 0 ? 'loss' : 'neutral'
+    };
   });
 
   readonly sideClasses = computed(() => {
     const side = this.order().side;
-    return `trade-card__side-indicator--${side}`;
+    return `trade-side__indicator--${side}`;
   });
 
   readonly cardClasses = computed(() => {
@@ -341,10 +426,75 @@ export class TradeCardComponent {
   protected formatPrice(price?: number): string {
     if (price === undefined) return 'N/A';
     
-    return price.toLocaleString('en-US', {
-      minimumFractionDigits: this.getPriceDecimals(),
-      maximumFractionDigits: this.getPriceDecimals()
-    });
+    return this.formatPriceWithProfessionalPrecision(price);
+  }
+
+  protected formatPriceWithProfessionalPrecision(price: number, symbol?: string): string {
+    const targetSymbol = symbol || this.order().symbol.replace('/', '');
+    const precision = this.ASSET_PRECISION[targetSymbol] || this.getPriceDecimals();
+    
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+      useGrouping: true
+    }).format(price);
+  }
+
+  protected formatQuantityWithUnit(): string {
+    const quantity = this.order().quantity;
+    const filledQuantity = this.order().filledQuantity;
+    const baseCurrency = this.enhancedSymbol().baseCurrency;
+    
+    const quantityText = filledQuantity && filledQuantity !== quantity 
+      ? `${filledQuantity.toLocaleString()} / ${quantity.toLocaleString()}`
+      : quantity.toLocaleString();
+    
+    return `${quantityText} ${baseCurrency}`;
+  }
+
+  protected formatCurrentPrice(): string {
+    // For active trades, show current market price if available
+    // For now, we'll use filled price or entry price
+    const currentPrice = this.order().filledPrice || this.order().price;
+    return currentPrice ? this.formatPriceWithProfessionalPrecision(currentPrice) : 'N/A';
+  }
+
+  protected formatTimestamp(): string {
+    const createdAt = new Date(this.order().createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - createdAt.getTime();
+    
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days} days ago`;
+    if (hours > 0) return `${hours} hours ago`;
+    if (minutes > 0) return `${minutes} minutes ago`;
+    return 'Just now';
+  }
+
+  private calculatePnLPercentage(): number | null {
+    const order = this.order();
+    if (!order.profit || !order.price || !order.quantity) return null;
+    
+    const investment = order.price * order.quantity;
+    return (order.profit / investment) * 100;
+  }
+
+  private getAssetClass(symbol: string): 'crypto' | 'forex' | 'commodity' {
+    const cleanSymbol = symbol.replace('/', '').toUpperCase();
+    
+    if (cleanSymbol.includes('BTC') || cleanSymbol.includes('ETH') || cleanSymbol.includes('LTC') || 
+        cleanSymbol.includes('ADA') || cleanSymbol.includes('DOT')) {
+      return 'crypto';
+    }
+    
+    if (cleanSymbol.includes('XAU') || cleanSymbol.includes('XAG') || cleanSymbol.includes('WTI')) {
+      return 'commodity';
+    }
+    
+    return 'forex';
   }
 
   protected formatQuantity(): string {
@@ -392,6 +542,15 @@ export class TradeCardComponent {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  }
+
+  protected formatCurrency(amount: number): string {
+    return amount.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     });
   }
 
