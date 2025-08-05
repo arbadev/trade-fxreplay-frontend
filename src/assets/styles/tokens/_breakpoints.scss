@@ -1,0 +1,177 @@
+// Responsive Breakpoints
+// Trade FX Replay - Mobile-first responsive design
+
+// Breakpoint values
+:root {
+  --bp-xs: 320px;   // Small mobile
+  --bp-sm: 640px;   // Large mobile / Small tablet
+  --bp-md: 768px;   // Tablet
+  --bp-lg: 1024px;  // Desktop
+  --bp-xl: 1280px;  // Large desktop
+  --bp-2xl: 1536px; // Extra large desktop
+}
+
+// SCSS Variables for media queries
+$breakpoints: (
+  'xs': 320px,
+  'sm': 640px,
+  'md': 768px,
+  'lg': 1024px,
+  'xl': 1280px,
+  '2xl': 1536px
+);
+
+// Media query mixins (mobile-first approach)
+@mixin responsive($breakpoint) {
+  @if map-has-key($breakpoints, $breakpoint) {
+    @media (min-width: map-get($breakpoints, $breakpoint)) {
+      @content;
+    }
+  } @else {
+    @warn "Breakpoint #{$breakpoint} not found in $breakpoints.";
+  }
+}
+
+// Convenience mixins for common breakpoints
+@mixin mobile-up {
+  @include responsive('xs') {
+    @content;
+  }
+}
+
+@mixin tablet-up {
+  @include responsive('sm') {
+    @content;
+  }
+}
+
+@mixin desktop-up {
+  @include responsive('lg') {
+    @content;
+  }
+}
+
+@mixin large-desktop-up {
+  @include responsive('xl') {
+    @content;
+  }
+}
+
+// Max-width media queries (for targeting smaller screens)
+@mixin mobile-only {
+  @media (max-width: #{map-get($breakpoints, 'sm') - 1px}) {
+    @content;
+  }
+}
+
+@mixin tablet-only {
+  @media (min-width: #{map-get($breakpoints, 'sm')}) and (max-width: #{map-get($breakpoints, 'lg') - 1px}) {
+    @content;
+  }
+}
+
+// Container max-widths for different breakpoints
+:root {
+  --container-xs: 100%;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+}
+
+// Container mixin with responsive max-widths
+@mixin container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  
+  @include container-padding;
+  
+  @include responsive('sm') {
+    max-width: var(--container-sm);
+  }
+  
+  @include responsive('md') {
+    max-width: var(--container-md);
+  }
+  
+  @include responsive('lg') {
+    max-width: var(--container-lg);
+  }
+  
+  @include responsive('xl') {
+    max-width: var(--container-xl);
+  }
+  
+  @include responsive('2xl') {
+    max-width: var(--container-2xl);
+  }
+}
+
+// Grid system for responsive layouts
+@mixin grid-responsive {
+  display: grid;
+  gap: var(--space-4);
+  
+  // Mobile: 1 column
+  grid-template-columns: 1fr;
+  
+  // Tablet: 2 columns
+  @include responsive('sm') {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-6);
+  }
+  
+  // Desktop: 3 columns
+  @include responsive('lg') {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-8);
+  }
+}
+
+// Navigation breakpoints (for switching between mobile and desktop nav)
+@mixin mobile-nav {
+  @include mobile-only {
+    @content;
+  }
+}
+
+@mixin desktop-nav {
+  @include desktop-up {
+    @content;
+  }
+}
+
+// Trading-specific responsive patterns
+@mixin trading-card-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+  
+  @include responsive('sm') {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @include responsive('lg') {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  @include responsive('xl') {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@mixin portfolio-stats-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(3, 1fr); // Always 3 columns for stats
+  
+  @include responsive('sm') {
+    gap: var(--space-6);
+  }
+  
+  @include responsive('lg') {
+    gap: var(--space-8);
+  }
+}

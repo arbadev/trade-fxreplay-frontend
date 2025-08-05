@@ -1,0 +1,277 @@
+@import '../../../../../assets/styles/tokens/colors';
+@import '../../../../../assets/styles/tokens/spacing';
+@import '../../../../../assets/styles/tokens/typography';
+@import '../../../../../assets/styles/tokens/breakpoints';
+
+.quick-filters {
+  width: 100%;
+  
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+  
+  &__title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0;
+  }
+  
+  &__clear {
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    color: var(--primary-blue);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: var(--bg-secondary);
+      color: var(--primary-blue-light);
+    }
+    
+    &:active {
+      background: var(--bg-tertiary);
+    }
+  }
+  
+  &__container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  
+  &__scroll {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-behavior: smooth;
+    padding: var(--space-1) 0;
+    flex: 1;
+    
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    
+    // Add fade effect on mobile
+    @media (max-width: map-get($breakpoints, 'md')) {
+      position: relative;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 20px;
+        background: linear-gradient(to right, transparent, var(--bg-primary));
+        pointer-events: none;
+      }
+    }
+  }
+  
+  &__summary {
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    
+    .summary-text {
+      font-size: var(--text-xs);
+      color: var(--text-secondary);
+      font-weight: var(--font-medium);
+    }
+  }
+}
+
+.filter-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: var(--touch-target-comfortable);
+  position: relative;
+  
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--border-secondary);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+  
+  &:focus {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+  
+  &--active {
+    background: var(--primary-blue);
+    border-color: var(--primary-blue);
+    color: white;
+    
+    &:hover:not(:disabled) {
+      background: var(--primary-blue-light);
+      border-color: var(--primary-blue-light);
+    }
+    
+    &:active:not(:disabled) {
+      background: var(--primary-blue-dark);
+    }
+  }
+  
+  &--profitable {
+    &.filter-pill--active {
+      background: var(--profit-green);
+      border-color: var(--profit-green);
+      
+      &:hover:not(:disabled) {
+        background: var(--profit-green-light);
+        border-color: var(--profit-green-light);
+      }
+      
+      &:active:not(:disabled) {
+        background: var(--profit-green-dark);
+      }
+    }
+  }
+  
+  &--custom {
+    border: 1px dashed var(--border-secondary);
+    
+    &:hover:not(:disabled) {
+      border-style: solid;
+      background: var(--bg-tertiary);
+    }
+  }
+  
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: currentColor;
+    
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+  
+  &__label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+  }
+  
+  &__badge {
+    margin-left: var(--space-1);
+    
+    // Override badge colors based on filter state
+    .filter-pill--active & {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+  }
+  
+  &__active-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: var(--space-1);
+    
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+}
+
+// Animation for filter changes
+@keyframes filterChange {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.filter-pill--active {
+  animation: filterChange 0.3s ease;
+}
+
+// Responsive adjustments
+@media (max-width: map-get($breakpoints, 'sm')) {
+  .filter-pill {
+    padding: var(--space-2);
+    font-size: var(--text-xs);
+    
+    &__label {
+      font-size: var(--text-xs);
+    }
+    
+    &__icon svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+  
+  .quick-filters {
+    &__title {
+      font-size: var(--text-xs);
+    }
+    
+    &__clear {
+      font-size: var(--text-xs);
+    }
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .filter-pill {
+    border-width: 2px;
+    
+    &--active {
+      border-width: 3px;
+    }
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .filter-pill {
+    transition: none;
+    
+    &:hover:not(:disabled) {
+      transform: none;
+    }
+  }
+  
+  .filter-pill--active {
+    animation: none;
+  }
+}

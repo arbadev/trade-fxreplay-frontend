@@ -1,0 +1,136 @@
+// Color Design Tokens
+// Trade FX Replay - Mobile-first Forex Trading Application
+
+// Brand Colors
+:root {
+  --primary-blue: #1E40AF;
+  --primary-blue-light: #3B82F6;
+  --primary-blue-dark: #1E3A8A;
+  --primary-blue-rgb: 30, 64, 175; // For rgba() usage
+}
+
+// Trading Colors
+:root {
+  --profit-green: #10B981;
+  --profit-green-light: #34D399;
+  --profit-green-dark: #059669;
+  --profit-green-rgb: 16, 185, 129;
+  
+  --loss-red: #EF4444;
+  --loss-red-light: #F87171;
+  --loss-red-dark: #DC2626;
+  --loss-red-rgb: 239, 68, 68;
+  
+  --pending-yellow: #F59E0B;
+  --pending-yellow-light: #FBBF24;
+  --pending-yellow-dark: #D97706;
+  --pending-yellow-rgb: 245, 158, 11;
+  
+  --info-blue: #3B82F6;
+  --info-blue-light: #60A5FA;
+  --info-blue-dark: #2563EB;
+  --info-blue-rgb: 59, 130, 246;
+}
+
+// Dark Theme (Primary)
+:root {
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --bg-tertiary: #334155;
+  --bg-surface: #475569;
+  
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-tertiary: #64748B;
+  --text-muted: #94A3B8;
+  
+  --border-primary: #334155;
+  --border-secondary: #475569;
+  --border-focus: #3B82F6;
+  --border-hover: #60A5FA;
+}
+
+// Light Theme (Secondary - for future use)
+:root {
+  --bg-primary-light: #FFFFFF;
+  --bg-secondary-light: #F8FAFC;
+  --bg-tertiary-light: #F1F5F9;
+  --bg-surface-light: #E2E8F0;
+  
+  --text-primary-light: #0F172A;
+  --text-secondary-light: #475569;
+  --text-tertiary-light: #64748B;
+  --text-muted-light: #94A3B8;
+  
+  --border-primary-light: #E2E8F0;
+  --border-secondary-light: #CBD5E1;
+}
+
+// UI State Colors
+:root {
+  --success: var(--profit-green);
+  --error: var(--loss-red);
+  --warning: var(--pending-yellow);
+  --info: var(--info-blue);
+  
+  --success-bg: rgba(var(--profit-green-rgb), 0.1);
+  --error-bg: rgba(var(--loss-red-rgb), 0.1);
+  --warning-bg: rgba(var(--pending-yellow-rgb), 0.1);
+  --info-bg: rgba(var(--info-blue-rgb), 0.1);
+}
+
+// Shadows (for dark theme)
+:root {
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+// SCSS Variables for programmatic use
+$colors: (
+  // Brand
+  'brand-blue': var(--primary-blue),
+  'brand-blue-light': var(--primary-blue-light),
+  'brand-blue-dark': var(--primary-blue-dark),
+  
+  // Trading
+  'profit-green': var(--profit-green),
+  'profit-green-light': var(--profit-green-light),
+  'profit-green-dark': var(--profit-green-dark),
+  'loss-red': var(--loss-red),
+  'loss-red-light': var(--loss-red-light),
+  'loss-red-dark': var(--loss-red-dark),
+  'pending-yellow': var(--pending-yellow),
+  'pending-yellow-light': var(--pending-yellow-light),
+  'pending-yellow-dark': var(--pending-yellow-dark),
+  
+  // Backgrounds
+  'bg-primary': var(--bg-primary),
+  'bg-secondary': var(--bg-secondary),
+  'bg-tertiary': var(--bg-tertiary),
+  'bg-surface': var(--bg-surface),
+  
+  // Text
+  'text-primary': var(--text-primary),
+  'text-secondary': var(--text-secondary),
+  'text-tertiary': var(--text-tertiary),
+  'text-muted': var(--text-muted),
+  
+  // Borders
+  'border-primary': var(--border-primary),
+  'border-secondary': var(--border-secondary),
+  'border-focus': var(--border-focus),
+  'border-hover': var(--border-hover),
+  
+  // States
+  'success': var(--success),
+  'error': var(--error),
+  'warning': var(--warning),
+  'info': var(--info)
+);
+
+// Color utility function
+@function color($name) {
+  @return map-get($colors, $name);
+}

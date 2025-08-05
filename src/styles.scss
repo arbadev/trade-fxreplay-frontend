@@ -1,1 +1,14 @@
-/* You can add global styles to this file, and also import other style files */
+// Trade FX Replay - Global Styles
+// Mobile-first forex trading application
+
+// Design Tokens
+@import 'assets/styles/tokens/colors';
+@import 'assets/styles/tokens/typography';
+@import 'assets/styles/tokens/spacing';
+@import 'assets/styles/tokens/breakpoints';
+
+// Base Styles
+@import 'assets/styles/base/reset';
+@import 'assets/styles/base/typography';
+
+// Global application styles
