@@ -1,0 +1,1 @@
+This command structure ensures that Claude Code will automatically utilize the angular-cli MCP whenever it encounters Angular-related tasks, maintaining consistency with modern Angular best practices throughout your development process.
