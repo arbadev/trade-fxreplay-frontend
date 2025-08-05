@@ -1,7 +1,7 @@
 import { Component, signal, computed, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 
 import { TradeOrderService } from '../../core/services/trade-order.service';
@@ -150,6 +150,9 @@ export class DashboardComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly tradeOrderService = inject(TradeOrderService);
 
+  // Convert orders observable to signal for reactivity
+  private readonly orders = toSignal(this.tradeOrderService.orders$, { initialValue: [] });
+
   // Component state
   protected readonly isInitialLoading = signal<boolean>(true);
   protected readonly isRefreshing = signal<boolean>(false);
@@ -164,7 +167,7 @@ export class DashboardComponent implements OnInit {
 
   // Filter options with computed counts
   protected readonly filterOptions = computed<FilterOption[]>(() => {
-    const orders = this.tradeOrderService.getCachedOrders();
+    const orders = this.orders();
     
     return [
       {
