@@ -1,5 +1,6 @@
-import { Component, input, output, computed, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, input, output, computed, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 export type FabSize = 'sm' | 'md' | 'lg';
 export type FabPosition = 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -33,7 +34,7 @@ export interface FabAction {
               role="menuitem"
               [attr.aria-disabled]="action.disabled || disabled()">
               
-              <span class="fab-speed-dial__icon" [innerHTML]="action.icon"></span>
+              <span class="fab-speed-dial__icon" [innerHTML]="getSafeHtml(action.icon)"></span>
               
               @if (showLabels()) {
                 <span class="fab-speed-dial__label">{{ action.label }}</span>
@@ -58,8 +59,16 @@ export interface FabAction {
         } @else {
           <span 
             class="fab__icon" 
-            [class.fab__icon--rotated]="speedDial() && isExpanded()"
-            [innerHTML]="displayIcon()">
+            [class.fab__icon--rotated]="speedDial() && isExpanded()">
+            @if (displayIcon(); as safeIconHtml) {
+              <div [innerHTML]="safeIconHtml"></div>
+            } @else {
+              <!-- Default plus icon fallback -->
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            }
           </span>
         }
         
@@ -87,6 +96,8 @@ export interface FabAction {
   styleUrl: './fab.component.scss'
 })
 export class FabComponent {
+  private readonly sanitizer = inject(DomSanitizer);
+
   // Inputs
   readonly size = input<FabSize>('md');
   readonly position = input<FabPosition>('bottom-right');
@@ -162,12 +173,17 @@ export class FabComponent {
     return classes.join(' ');
   });
 
-  readonly displayIcon = computed(() => {
+  readonly displayIcon = computed((): SafeHtml | null => {
+    let iconHtml: string;
+    
     if (!this.speedDial()) {
-      return this.icon();
+      iconHtml = this.icon();
+    } else {
+      iconHtml = this.isExpanded() ? this.collapseIcon() : this.expandIcon();
     }
     
-    return this.isExpanded() ? this.collapseIcon() : this.expandIcon();
+    // Sanitize the HTML content to make it safe for innerHTML binding
+    return iconHtml ? this.sanitizer.bypassSecurityTrustHtml(iconHtml) : null;
   });
 
   readonly speedDialAriaLabel = computed(() => {
@@ -176,6 +192,10 @@ export class FabComponent {
 
   protected isExpanded(): boolean {
     return this.expanded();
+  }
+
+  protected getSafeHtml(html: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   protected handleMainClick(event: MouseEvent): void {

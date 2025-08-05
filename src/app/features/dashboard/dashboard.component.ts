@@ -103,12 +103,11 @@ import { LoadingSpinnerComponent } from '../../shared/components/loading-spinner
         [size]="'md'"
         [position]="'bottom-right'"
         [variant]="'success'"
-        [speedDial]="true"
-        [actions]="fabActions()"
-        [ariaLabel]="'Quick trading actions'"
-        [badge]="activeBadgeCount()"
-        (click)="handleFabClick($event)"
-        (actionClick)="handleFabAction($event)">
+        [speedDial]="false"
+        [actions]="[]"
+        [icon]="fabIcon()"
+        [ariaLabel]="'Create new trade order'"
+        (click)="handleFabClick($event)">
       </app-fab>
 
       <!-- Loading Overlay for Initial Load -->
@@ -209,44 +208,13 @@ export class DashboardComponent implements OnInit {
     ];
   });
 
-  // FAB actions
-  protected readonly fabActions = computed<FabAction[]>(() => [
-    {
-      id: 'new-order',
-      label: 'New Trade',
-      icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <line x1="12" y1="5" x2="12" y2="19"></line>
-               <line x1="5" y1="12" x2="19" y2="12"></line>
-             </svg>`,
-      variant: 'success'
-    },
-    {
-      id: 'quick-buy',
-      label: 'Quick Buy',
-      icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-             </svg>`,
-      variant: 'success'
-    },
-    {
-      id: 'quick-sell',
-      label: 'Quick Sell',
-      icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <polyline points="2 12 6 12 9 3 15 21 18 12 22 12"></polyline>
-             </svg>`,
-      variant: 'error'
-    },
-    {
-      id: 'close-all',
-      label: 'Close All',
-      icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-               <line x1="18" y1="6" x2="6" y2="18"></line>
-               <line x1="6" y1="6" x2="18" y2="18"></line>
-             </svg>`,
-      variant: 'warning',
-      disabled: this.getActiveOrdersCount() === 0
-    }
-  ]);
+  // FAB icon for simple add action
+  protected readonly fabIcon = signal<string>(`
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  `);
 
   protected readonly activeBadgeCount = computed<number>(() => {
     return this.getActiveOrdersCount();
@@ -346,30 +314,11 @@ export class DashboardComponent implements OnInit {
   }
 
   protected handleFabClick(_event: MouseEvent): void {
-    // Primary FAB action - create new order
+    // Simple FAB action - navigate directly to new trade page
     this.handleNewOrderClick();
   }
 
-  protected handleFabAction(event: { action: FabAction; event: MouseEvent }): void {
-    const { action } = event;
-    
-    switch (action.id) {
-      case 'new-order':
-        this.handleNewOrderClick();
-        break;
-      case 'quick-buy':
-        this.handleQuickTrade('buy');
-        break;
-      case 'quick-sell':
-        this.handleQuickTrade('sell');
-        break;
-      case 'close-all':
-        this.handleCloseAllOrders();
-        break;
-      default:
-        console.warn('Unknown FAB action:', action.id);
-    }
-  }
+  // Removed handleFabAction since we're using a simple FAB now
 
   private async loadDashboard(): Promise<void> {
     try {

@@ -1,11 +1,11 @@
-@import '../../../../assets/styles/tokens/colors';
-@import '../../../../assets/styles/tokens/spacing';
-@import '../../../../assets/styles/tokens/typography';
-@import '../../../../assets/styles/tokens/breakpoints';
+@import '../../../../assets/styles/tokens/_colors';
+@import '../../../../assets/styles/tokens/_spacing';
+@import '../../../../assets/styles/tokens/_typography';
+@import '../../../../assets/styles/tokens/_breakpoints';
 
 .fab-container {
   position: fixed;
-  z-index: 1000;
+  z-index: 1001;
   
   &--bottom-right {
     bottom: var(--space-6);
@@ -42,11 +42,13 @@
       opacity: 1;
       transform: translateY(0);
       pointer-events: all;
+      visibility: visible;
     }
     
     .fab-backdrop {
       opacity: 1;
       pointer-events: all;
+      visibility: visible;
     }
   }
 }
@@ -213,6 +215,14 @@
     justify-content: center;
     color: currentColor;
     transition: all 0.3s ease;
+    
+    svg {
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
   }
   
   &__label {
@@ -262,6 +272,8 @@
   transform: translateY(var(--space-4));
   transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
   pointer-events: none;
+  visibility: hidden;
+  z-index: 1;
   
   &__action {
     display: flex;
@@ -277,6 +289,8 @@
     transition: all 0.2s ease;
     box-shadow: var(--shadow-md);
     position: relative;
+    opacity: 0;
+    transform: translateY(var(--space-4)) scale(0.8);
     
     &:hover:not(&--disabled) {
       transform: scale(1.1);
@@ -360,27 +374,36 @@
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
-  z-index: -1;
+  visibility: hidden;
+  z-index: 999;
 }
 
 // Animation for staggered appearance
 .fab-container--expanded {
   .fab-speed-dial__action {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    
     @for $i from 1 through 6 {
       &:nth-child(#{$i}) {
-        animation: fabSlideIn 0.3s ease forwards;
-        animation-delay: #{($i - 1) * 0.05s};
+        animation: fabSlideIn 0.25s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+        animation-delay: #{($i - 1) * 0.03s};
+        animation-fill-mode: both;
       }
     }
   }
 }
 
 @keyframes fabSlideIn {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(var(--space-4)) scale(0.8);
+    transform: translateY(var(--space-6)) scale(0.7);
   }
-  to {
+  50% {
+    opacity: 0.8;
+    transform: translateY(calc(var(--space-1) * -1)) scale(1.05);
+  }
+  100% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
@@ -462,6 +485,8 @@
   .fab-container--expanded {
     .fab-speed-dial__action {
       animation: none;
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
   
