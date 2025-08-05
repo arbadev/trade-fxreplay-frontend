@@ -9,3 +9,5 @@ export * from './select/select.component';
 export * from './form-field/form-field.component';
 export * from './toggle/toggle.component';
 export * from './not-found/not-found.component';
+export * from './trade-card/trade-card.component';
+export * from './floating-action-button/fab.component';

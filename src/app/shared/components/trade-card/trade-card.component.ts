@@ -139,7 +139,7 @@ export interface TradeCardAction {
               @if (order().filledAt) {
                 <div class="trade-card__detail-item">
                   <span class="trade-card__detail-label">Filled</span>
-                  <span class="trade-card__detail-value">{{ formatDate(order().filledAt) }}</span>
+                  <span class="trade-card__detail-value">{{ formatDate(order().filledAt!) }}</span>
                 </div>
               }
               
@@ -258,10 +258,13 @@ export class TradeCardComponent {
       classes.push('trade-card--active');
     }
     
-    if (this.order().profit && this.order().profit > 0) {
-      classes.push('trade-card--profitable');
-    } else if (this.order().profit && this.order().profit < 0) {
-      classes.push('trade-card--losing');
+    const profit = this.order().profit;
+    if (profit !== undefined) {
+      if (profit > 0) {
+        classes.push('trade-card--profitable');
+      } else if (profit < 0) {
+        classes.push('trade-card--losing');
+      }
     }
     
     return classes.join(' ');

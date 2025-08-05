@@ -1,7 +1,7 @@
 import { Component, input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-export type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+export type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | number;
 export type SpinnerVariant = 'default' | 'primary' | 'success' | 'error' | 'warning';
 
 @Component({
@@ -11,7 +11,7 @@ export type SpinnerVariant = 'default' | 'primary' | 'success' | 'error' | 'warn
   template: `
     <div [class]="containerClasses()">
       <div [class]="spinnerClasses()" [attr.aria-label]="ariaLabel()">
-        <div class="spinner-circle"></div>
+        <div class="spinner-circle" [style]="customSizeStyle()"></div>
       </div>
       
       @if (message()) {
@@ -73,6 +73,10 @@ export type SpinnerVariant = 'default' | 'primary' | 'success' | 'error' | 'warn
       width: 48px;
       height: 48px;
       border-width: 4px;
+    }
+    
+    .spinner--custom .spinner-circle {
+      /* Custom size styles applied via [style] binding */
     }
     
     /* Variants */
@@ -187,9 +191,26 @@ export class LoadingSpinnerComponent {
   readonly spinnerClasses = computed(() => {
     const classes = ['spinner'];
     
-    classes.push(`spinner--${this.size()}`);
+    const size = this.size();
+    if (typeof size === 'number') {
+      classes.push('spinner--custom');
+    } else {
+      classes.push(`spinner--${size}`);
+    }
     classes.push(`spinner--${this.variant()}`);
     
     return classes.join(' ');
+  });
+
+  readonly customSizeStyle = computed(() => {
+    const size = this.size();
+    if (typeof size === 'number') {
+      return {
+        width: `${size}px`,
+        height: `${size}px`,
+        'border-width': `${Math.max(2, Math.floor(size / 8))}px`
+      };
+    }
+    return null;
   });
 }

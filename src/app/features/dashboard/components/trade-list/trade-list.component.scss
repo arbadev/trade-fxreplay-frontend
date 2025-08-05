@@ -1,0 +1,404 @@
+@import '../../../../../assets/styles/tokens/colors';
+@import '../../../../../assets/styles/tokens/spacing';
+@import '../../../../../assets/styles/tokens/typography';
+@import '../../../../../assets/styles/tokens/breakpoints';
+
+.trade-list {
+  width: 100%;
+  position: relative;
+  
+  &--loading {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+    gap: var(--space-4);
+    
+    @media (max-width: map-get($breakpoints, 'sm')) {
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+  }
+  
+  &__title-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  
+  &__title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  
+  &__count {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    font-weight: var(--font-medium);
+  }
+  
+  &__filter-status {
+    font-size: var(--text-sm);
+    color: var(--primary-blue);
+    font-weight: var(--font-medium);
+    padding: var(--space-1) var(--space-2);
+    background: var(--info-bg);
+    border-radius: var(--radius-sm);
+  }
+  
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    
+    @media (max-width: map-get($breakpoints, 'sm')) {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+  
+  &__sort {
+    position: relative;
+  }
+  
+  &__sort-select {
+    appearance: none;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 160px;
+    
+    &:hover:not(:disabled) {
+      border-color: var(--border-secondary);
+      background: var(--bg-tertiary);
+    }
+    
+    &:focus {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    // Custom dropdown arrow
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right var(--space-2) center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    
+    @media (max-width: map-get($breakpoints, 'sm')) {
+      min-width: 140px;
+      font-size: var(--text-xs);
+    }
+  }
+  
+  &__refresh {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover:not(:disabled) {
+      background: var(--bg-tertiary);
+      border-color: var(--border-secondary);
+      color: var(--text-primary);
+      transform: rotate(90deg);
+    }
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    &.loading {
+      animation: refreshSpin 1s linear infinite;
+    }
+  }
+  
+  &__content {
+    position: relative;
+  }
+  
+  &__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  
+  &__skeleton-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    
+    .skeleton {
+      background: linear-gradient(
+        90deg,
+        var(--bg-tertiary) 25%,
+        var(--bg-surface) 50%,
+        var(--bg-tertiary) 75%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-sm);
+      
+      &--header {
+        height: 20px;
+        width: 60%;
+        margin-bottom: var(--space-3);
+      }
+      
+      &--content {
+        height: 60px;
+        width: 100%;
+        margin-bottom: var(--space-3);
+      }
+      
+      &--footer {
+        height: 16px;
+        width: 40%;
+      }
+    }
+  }
+  
+  &__error,
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: var(--space-8);
+  }
+  
+  &__grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    
+    &--compact {
+      gap: var(--space-3);
+    }
+    
+    @media (min-width: map-get($breakpoints, 'lg')) {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: var(--space-4);
+      
+      &--compact {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: var(--space-3);
+      }
+    }
+  }
+  
+  &__item {
+    // Individual trade card container
+  }
+  
+  &__pagination {
+    margin-top: var(--space-6);
+    display: flex;
+    justify-content: center;
+  }
+  
+  &__load-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  
+  &__pagination-info {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+  
+  &__infinite-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    margin-top: var(--space-4);
+  }
+  
+  &__loading-text {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+  }
+  
+  &__pull-to-refresh {
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    z-index: 10;
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+    
+    &--active {
+      transform: translateY(60px);
+    }
+  }
+}
+
+.pull-to-refresh-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  
+  svg {
+    transition: transform 0.3s ease;
+  }
+}
+
+.pull-to-refresh-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.error-state,
+.empty-state {
+  text-align: center;
+  max-width: 400px;
+  
+  &__icon {
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-4);
+  }
+  
+  &__title {
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin: 0 0 var(--space-2) 0;
+  }
+  
+  &__message {
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-4) 0;
+    line-height: 1.5;
+  }
+  
+  &__retry,
+  &__cta {
+    margin-top: var(--space-4);
+  }
+}
+
+.error-state__icon {
+  color: var(--loss-red);
+}
+
+// Animations
+@keyframes refreshSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// Responsive adjustments
+@media (max-width: map-get($breakpoints, 'sm')) {
+  .trade-list {
+    &__header {
+      padding: 0 var(--space-2);
+    }
+    
+    &__title {
+      font-size: var(--text-base);
+    }
+    
+    &__actions {
+      flex-wrap: wrap;
+    }
+    
+    &__sort-select {
+      flex: 1;
+      min-width: 120px;
+    }
+  }
+  
+  .empty-state,
+  .error-state {
+    padding: var(--space-4);
+    
+    &__title {
+      font-size: var(--text-base);
+    }
+    
+    &__message {
+      font-size: var(--text-xs);
+    }
+  }
+}
+
+// High contrast mode
+@media (prefers-contrast: high) {
+  .trade-list {
+    &__sort-select {
+      border-width: 2px;
+    }
+    
+    &__refresh {
+      border-width: 2px;
+    }
+  }
+}
+
+// Reduced motion
+@media (prefers-reduced-motion: reduce) {
+  .trade-list {
+    &__refresh:hover:not(:disabled) {
+      transform: none;
+    }
+    
+    &__pull-to-refresh {
+      transition: none;
+    }
+  }
+  
+  .pull-to-refresh-indicator svg {
+    transition: none;
+  }
+  
+  .trade-list__skeleton .skeleton {
+    animation: none;
+  }
+}

@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { map, takeUntilDestroyed } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { TradeOrderService } from '../../../../core/services/trade-order.service';
 import { PortfolioStats } from '../../../../core/models/trade-order.interface';
@@ -238,7 +238,7 @@ export class PortfolioStatsComponent implements OnInit {
     this.tradeOrderService.portfolioStats$
       .pipe(takeUntilDestroyed())
       .subscribe(stats => {
-        this.stats.set(stats);
+        this.stats.set(stats as PortfolioStats | null);
         this.isLoading.set(false);
       });
   }

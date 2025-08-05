@@ -1,7 +1,7 @@
 import { Component, input, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-export type BadgeVariant = 'filled' | 'pending' | 'cancelled' | 'rejected' | 'success' | 'error' | 'warning' | 'info';
+export type BadgeVariant = 'filled' | 'pending' | 'cancelled' | 'rejected' | 'success' | 'error' | 'warning' | 'info' | 'default';
 export type BadgeSize = 'sm' | 'md' | 'lg';
 
 @Component({
@@ -14,7 +14,11 @@ export type BadgeSize = 'sm' | 'md' | 'lg';
         <span class="badge-icon" [innerHTML]="icon()"></span>
       }
       <span class="badge-text">
-        <ng-content></ng-content>
+        @if (count() !== null) {
+          {{ count() }}
+        } @else {
+          <ng-content></ng-content>
+        }
       </span>
     </span>
   `,
@@ -95,6 +99,12 @@ export type BadgeSize = 'sm' | 'md' | 'lg';
       border: 1px solid rgba(var(--info-blue-rgb), 0.2);
     }
     
+    .badge--default {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-primary);
+    }
+    
     /* Icon styling */
     .badge-icon {
       width: 12px;
@@ -165,6 +175,7 @@ export class BadgeComponent {
   readonly icon = input<string | null>(null);
   readonly pulse = input<boolean>(false);
   readonly dot = input<boolean>(false);
+  readonly count = input<number | null>(null);
 
   // Computed CSS classes
   readonly badgeClasses = computed(() => {
